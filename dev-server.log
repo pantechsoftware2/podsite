@@ -1,0 +1,27 @@
+
+> podsite-killer@0.1.0 dev
+> next dev
+
+▲ Next.js 16.1.6 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.1.20:3000
+
+✓ Starting...
+Creating turbopack project {
+  dir: 'C:\\Users\\Admin\\Downloads\\podsite_killer\\podsite-killer',
+  testMode: true
+}
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+✓ Ready in 852ms
+[Supabase config] middleware.ts: NEXT_PUBLIC_SUPABASE_URL is not usable (value is missing or empty). Read from process.env.NEXT_PUBLIC_SUPABASE_URL by lib/config.ts:getPublicSupabaseConfigStatus.
+[Supabase config] middleware.ts: NEXT_PUBLIC_SUPABASE_ANON_KEY is not usable (value is missing or empty). Read from process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY by lib/config.ts:getPublicSupabaseConfigStatus.
+[Supabase config] middleware.ts: NEXT_PUBLIC_SUPABASE_URL is not usable (value is missing or empty). Read from process.env.NEXT_PUBLIC_SUPABASE_URL by lib/config.ts:getPublicSupabaseConfigStatus.
+[Supabase config] middleware.ts: NEXT_PUBLIC_SUPABASE_ANON_KEY is not usable (value is missing or empty). Read from process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY by lib/config.ts:getPublicSupabaseConfigStatus.
+[Supabase config] middleware.ts: NEXT_PUBLIC_SUPABASE_URL is not usable (value is missing or empty). Read from process.env.NEXT_PUBLIC_SUPABASE_URL by lib/config.ts:getPublicSupabaseConfigStatus.
+[Supabase config] middleware.ts: NEXT_PUBLIC_SUPABASE_ANON_KEY is not usable (value is missing or empty). Read from process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY by lib/config.ts:getPublicSupabaseConfigStatus.
+ GET /login?error=Supabase%20is%20not%20configured.%20Missing%3A%20NEXT_PUBLIC_SUPABASE_URL%2C%20NEXT_PUBLIC_SUPABASE_ANON_KEY 200 in 2.6s (compile: 2.5s, proxy.ts: 4ms, render: 134ms)
+[Supabase config] middleware.ts: NEXT_PUBLIC_SUPABASE_URL is not usable (value is missing or empty). Read from process.env.NEXT_PUBLIC_SUPABASE_URL by lib/config.ts:getPublicSupabaseConfigStatus.
+[Supabase config] middleware.ts: NEXT_PUBLIC_SUPABASE_ANON_KEY is not usable (value is missing or empty). Read from process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY by lib/config.ts:getPublicSupabaseConfigStatus.
+[Supabase config] middleware.ts: NEXT_PUBLIC_SUPABASE_URL is not usable (value is missing or empty). Read from process.env.NEXT_PUBLIC_SUPABASE_URL by lib/config.ts:getPublicSupabaseConfigStatus.
+[Supabase config] middleware.ts: NEXT_PUBLIC_SUPABASE_ANON_KEY is not usable (value is missing or empty). Read from process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY by lib/config.ts:getPublicSupabaseConfigStatus.
+ GET /login?error=Supabase%20is%20not%20configured.%20Missing%3A%20NEXT_PUBLIC_SUPABASE_URL%2C%20NEXT_PUBLIC_SUPABASE_ANON_KEY 200 in 143ms (compile: 19ms, proxy.ts: 16ms, render: 108ms)

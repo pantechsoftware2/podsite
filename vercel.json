@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/rss-sweep",
+      "schedule": "0 5 * * *"
+    }
+  ]
+}

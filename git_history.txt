@@ -1,0 +1,145 @@
+﻿commit e77622d2aa35e6c5286da9999c418cc07c1c1e33
+Author: Garima Singh <garimarajput640@gmail.com>
+Date:   Sat Feb 28 00:31:32 2026 +0530
+
+    fix: revert episode list to original grid and enhance settings UI visuals
+
+M	app/(public)/[subdomain]/episodes/page.tsx
+M	app/(public)/[subdomain]/page.tsx
+D	components/blocks/EpisodeListBlock.tsx
+A	components/blocks/GridBlock.tsx
+M	components/dashboard/BlockReorder.tsx
+M	components/dashboard/SplitScreenEditor.tsx
+M	components/dashboard/ThemeCustomizer.tsx
+
+commit 06a0630762b85aed18ad73ed4af5cec1b1947f9a
+Author: Garima Singh <garimarajput640@gmail.com>
+Date:   Sat Feb 28 00:13:02 2026 +0530
+
+    fix: resolve globals.css circular references and sync ThemeEngine
+
+M	app/globals.css
+M	components/ThemeEngine.tsx
+
+commit 6ec7b36a9385a1f13455dbea08013c4b1b596698
+Author: Garima Singh <garimarajput640@gmail.com>
+Date:   Sat Feb 28 00:08:08 2026 +0530
+
+    feat: finalize phase 3 - episode list, snapshot preview, stripe fix
+
+M	app/(public)/[subdomain]/episodes/page.tsx
+M	app/(public)/[subdomain]/page.tsx
+M	app/api/stripe/connect/route.ts
+M	app/api/stripe/create-checkout/route.ts
+M	app/api/stripe/webhook/route.ts
+A	components/blocks/EpisodeListBlock.tsx
+D	components/blocks/GridBlock.tsx
+M	components/dashboard/SplitScreenEditor.tsx
+M	components/dashboard/ThemeCustomizer.tsx
+M	lib/youtube/fetchUploads.ts
+M	lib/youtube/fuzzyMatcher.ts
+D	middleware.ts
+M	proxy.ts
+
+commit 9d07089994c3c176c2845027632eff601135d5d8
+Author: Garima Singh <garimarajput640@gmail.com>
+Date:   Fri Feb 27 01:42:22 2026 +0530
+
+    feat: implement phase 3
+
+D	LOGIN_DIAGNOSIS.md
+D	LOGIN_FIXES_SUMMARY.md
+M	app/(dashboard)/_components/NewPodcastForm.tsx
+A	app/(dashboard)/dashboard/customize/layout.tsx
+A	app/(dashboard)/dashboard/customize/page.tsx
+A	app/(dashboard)/dashboard/domains/_components/DomainsClient.tsx
+A	app/(dashboard)/dashboard/domains/page.tsx
+A	app/(dashboard)/dashboard/products/_components/ProductsClient.tsx
+A	app/(dashboard)/dashboard/products/page.tsx
+A	app/(dashboard)/dashboard/video-sync/_components/VideoSyncClient.tsx
+A	app/(dashboard)/dashboard/video-sync/actions.ts
+A	app/(dashboard)/dashboard/video-sync/page.tsx
+M	app/(public)/[subdomain]/episodes/page.tsx
+M	app/(public)/[subdomain]/page.tsx
+A	app/api/domains/route.ts
+A	app/api/stripe/connect/route.ts
+A	app/api/stripe/create-checkout/route.ts
+A	app/api/stripe/webhook/route.ts
+A	components/LiveLayoutManager.tsx
+M	components/ThemeEngine.tsx
+M	components/blocks/GridBlock.tsx
+A	components/blocks/ProductBlock.tsx
+A	components/dashboard/SplitScreenEditor.tsx
+M	components/dashboard/ThemeCustomizer.tsx
+A	lib/youtube/fuzzyMatcher.ts
+A	middleware.ts
+M	package-lock.json
+M	package.json
+
+commit 5dd650c5eb463a3133e18792186409a6c8bcaba2
+Author: Garima Singh <garimarajput640@gmail.com>
+Date:   Thu Feb 19 11:15:09 2026 +0530
+
+    Fix login issues: Google OAuth and email/password authentication
+    
+    - Fixed dashboard duplicate podcast display bug (others array)
+    - Improved email/password login with session verification and retry logic
+    - Enhanced Google OAuth callback handling with better error messages
+    - Added session expiration detection in dashboard layout
+    - Added 'Clear session and try again' recovery link on login page
+    - Improved error messages for better user experience
+    - Added comprehensive troubleshooting documentation
+    - Fixed auth callback cookie handling and redirect flow
+    
+    Co-authored-by: Cursor <cursoragent@cursor.com>
+
+A	LOGIN_DIAGNOSIS.md
+A	LOGIN_FIXES_SUMMARY.md
+M	app/(dashboard)/dashboard/page.tsx
+M	app/(dashboard)/layout.tsx
+M	app/auth/callback/route.ts
+M	app/login/page.tsx
+A	docs/GOOGLE_OAUTH_SETUP.md
+A	docs/LOGIN_TROUBLESHOOTING.md
+
+commit 13bbb1858d27000e3bb9ad56a37de468481cc081
+Author: Garima Singh <garimarajput640@gmail.com>
+Date:   Tue Feb 17 23:16:26 2026 +0530
+
+    Simplify PodcastCard to show small image with compact layout
+
+M	app/(dashboard)/_components/PodcastCard.tsx
+
+commit 0ba82f61ec3b91265250ac590c9a38dc908c4f98
+Author: Garima Singh <garimarajput640@gmail.com>
+Date:   Tue Feb 17 23:13:06 2026 +0530
+
+    Add podcast cover images back to PodcastCard component
+
+M	app/(dashboard)/_components/PodcastCard.tsx
+
+commit ba58c7caee866ad0324a6c361298640fd6e202a1
+Author: Garima Singh <garimarajput640@gmail.com>
+Date:   Tue Feb 17 23:08:38 2026 +0530
+
+    Add debug logging to theme customization buttons
+
+M	components/dashboard/SettingsEditor.tsx
+M	components/dashboard/ThemeCustomizer.tsx
+
+commit f59d66f0aab502a612da9c8e17ec9b73f9bf26d6
+Author: Garima Singh <garimarajput640@gmail.com>
+Date:   Tue Feb 17 22:58:06 2026 +0530
+
+    Fix drag-and-drop: add activation constraint to PointerSensor
+
+M	components/dashboard/BlockReorder.tsx
+
+commit e9ad20ba2cb6ae4e4299cb9f42d0ab6f260b16f4
+Author: Garima Singh <garimarajput640@gmail.com>
+Date:   Tue Feb 17 22:31:12 2026 +0530
+
+    Enable auto-save for page layout reordering - instant updates to live site
+
+M	components/dashboard/BlockReorder.tsx
+M	components/dashboard/SettingsEditor.tsx
