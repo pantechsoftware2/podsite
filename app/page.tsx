@@ -1,7 +1,9 @@
 // app/page.tsx
 import { redirect } from 'next/navigation';
-import { getPublicSupabaseConfigStatus } from '@/lib/config';
-import { createSupabaseServerClient } from '@/lib/supabaseServer';
+// TODO: TEMPORARY LOGIN BYPASS - keep these auth imports ready for restoring
+// the root login gate when the Login page is enabled again.
+// import { getPublicSupabaseConfigStatus } from '@/lib/config';
+// import { createSupabaseServerClient } from '@/lib/supabaseServer';
 
 type HomeProps = {
   searchParams: Promise<{ code?: string; next?: string }>;
@@ -18,6 +20,9 @@ export default async function Home({ searchParams }: HomeProps) {
     redirect(`/auth/callback?${callbackParams.toString()}`);
   }
 
+  // TODO: TEMPORARY LOGIN BYPASS - restore this auth gate when the Login page
+  // is enabled again. The original logic is intentionally preserved below.
+  /*
   const supabaseConfig = getPublicSupabaseConfigStatus();
 
   if (!supabaseConfig.ok) {
@@ -31,4 +36,7 @@ export default async function Home({ searchParams }: HomeProps) {
   } = await supabase.auth.getUser();
 
   redirect(user ? '/dashboard' : '/login');
+  */
+
+  redirect('/dashboard');
 }

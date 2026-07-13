@@ -531,8 +531,24 @@ function LoginContent() {
   );
 }
 
-export default function LoginPage() {
+function TemporaryLoginBypass() {
+  useEffect(() => {
+    window.location.replace(DASHBOARD);
+  }, []);
+
   return (
+    <div className="flex min-h-screen items-center justify-center bg-slate-950 text-slate-400">
+      Redirecting...
+    </div>
+  );
+}
+
+export default function LoginPage() {
+  // TODO: TEMPORARY LOGIN BYPASS - uncomment the Suspense/LoginContent block
+  // below and remove TemporaryLoginBypass when the Login page is enabled again.
+  return (
+    <TemporaryLoginBypass />
+    /*
     <Suspense fallback={
       <div className="flex min-h-screen items-center justify-center bg-slate-950 text-slate-400">
         Loading...
@@ -540,5 +556,6 @@ export default function LoginPage() {
     }>
       <LoginContent />
     </Suspense>
+    */
   );
 }
