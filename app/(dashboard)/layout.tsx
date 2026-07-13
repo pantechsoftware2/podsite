@@ -1,8 +1,5 @@
 // app/(dashboard)/layout.tsx
-import { redirect } from 'next/navigation';
-import { createSupabaseServerClient } from '@/lib/supabaseServer';
 import Link from 'next/link';
-import { SignOutButton } from './_components/SignOutButton';
 import { isCustomDomainsEnabled, isProductsEnabled } from '@/lib/featureFlags';
 
 export default async function DashboardLayout({
@@ -10,49 +7,51 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
-
-  if (error) {
-    console.error('Dashboard Layout - Auth Error:', {
-      message: error.message,
-      status: error.status,
-      name: error.name,
-    });
-
-    // Handle specific auth errors
-    if (error.message.includes('JWT') || error.message.includes('token') || error.message.includes('expired')) {
-      // Session expired or invalid - redirect to login with clear message
-      redirect('/login?error=' + encodeURIComponent('Session expired. Please log in again.'));
-    }
-  }
-
-  if (error || !user) {
-    console.log('Dashboard Layout - No user or error, redirecting to /login', {
-      hasError: !!error,
-      hasUser: !!user,
-      errorMessage: error?.message,
-    });
-    redirect('/login');
-  }
-
-  // Verify user has valid email (required for account)
-  if (!user.email) {
-    console.error('Dashboard Layout - User has no email');
-    redirect('/login?error=' + encodeURIComponent('Account configuration error. Please contact support.'));
-  }
-
-
-  // Robust name detection for different providers (Google vs Email)
-  const displayName =
-    user.user_metadata?.full_name ||
-    user.user_metadata?.name ||
-    user.user_metadata?.user_name ||
-    user.email?.split('@')[0] ||
-    'Studio Creator';
+  // Auth gate temporarily disabled: allow direct access to the dashboard.
+  // const supabase = await createSupabaseServerClient();
+  // const {
+  //   data: { user },
+  //   error,
+  // } = await supabase.auth.getUser();
+  //
+  // if (error) {
+  //   console.error('Dashboard Layout - Auth Error:', {
+  //     message: error.message,
+  //     status: error.status,
+  //     name: error.name,
+  //   });
+  //
+  //   // Handle specific auth errors
+  //   if (error.message.includes('JWT') || error.message.includes('token') || error.message.includes('expired')) {
+  //     // Session expired or invalid - redirect to login with clear message
+  //     redirect('/login?error=' + encodeURIComponent('Session expired. Please log in again.'));
+  //   }
+  // }
+  //
+  // if (error || !user) {
+  //   console.log('Dashboard Layout - No user or error, redirecting to /login', {
+  //     hasError: !!error,
+  //     hasUser: !!user,
+  //     errorMessage: error?.message,
+  //   });
+  //   redirect('/login');
+  // }
+  //
+  // // Verify user has valid email (required for account)
+  // if (!user.email) {
+  //   console.error('Dashboard Layout - User has no email');
+  //   redirect('/login?error=' + encodeURIComponent('Account configuration error. Please contact support.'));
+  // }
+  //
+  //
+  // // Robust name detection for different providers (Google vs Email)
+  // const displayName =
+  //   user.user_metadata?.full_name ||
+  //   user.user_metadata?.name ||
+  //   user.user_metadata?.user_name ||
+  //   user.email?.split('@')[0] ||
+  //   'Studio Creator';
+  const displayName = 'Studio Creator';
   const showProducts = isProductsEnabled();
   const showDomains = isCustomDomainsEnabled();
 
@@ -115,7 +114,8 @@ export default async function DashboardLayout({
               <span>Favorites</span>
             </Link>
             <div className="h-4 w-px bg-white/10 mx-1" />
-            <SignOutButton />
+            {/* Auth is temporarily disabled, so hide the sign-out control. */}
+            {/* <SignOutButton /> */}
           </nav>
         </div>
       </header>

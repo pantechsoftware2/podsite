@@ -12,6 +12,7 @@ import SubscribeModal from '@/components/public/SubscribeModal';
 type PublicPodcast = {
   id: string;
   title: string;
+  rss_url?: string | null;
   generatedPages?: ThemeConfig['generatedPages'];
   [key: string]: unknown;
 };
@@ -55,6 +56,11 @@ export default function PodcastPageWrapper({
             podcast={{
               ...livePodcast,
               generatedPages: livePodcast.generatedPages || themeConfig.generatedPages || [],
+              twitterUrl: themeConfig.twitterUrl,
+              linkedInUrl: themeConfig.linkedInUrl,
+              youtubeUrl: themeConfig.youtubeUrl,
+              spotifyUrl: themeConfig.spotifyUrl,
+              rssUrl: themeConfig.rssUrlOverride || livePodcast.rss_url || undefined,
             }}
             editMode={editMode}
             onSubscribeClick={() => setIsSubscribeOpen(true)}

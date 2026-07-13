@@ -5,8 +5,11 @@ import { useRouter } from 'next/navigation';
 import { CheckCircle2, Circle, Loader2, WandSparkles } from 'lucide-react';
 
 type BuildStatus = {
+  pipelineStatus: string;
   rssParsed: boolean;
   totalEpisodes: number;
+  episodesImported: boolean;
+  importedEpisodes: number;
   artworkDetected: boolean;
   colorsExtracted: boolean;
   themeStatus: string;
@@ -66,7 +69,7 @@ export default function BuildProgressClient({ siteId }: { siteId: string }) {
 
         setStatus(json.status);
 
-        if (json.status?.themeReady && !redirectedRef.current) {
+        if (json.status?.pipelineStatus === 'ready' && !redirectedRef.current) {
           redirectedRef.current = true;
           setTimeout(() => router.push(`/${siteId}?edit=true`), 650);
         }
@@ -90,22 +93,34 @@ export default function BuildProgressClient({ siteId }: { siteId: string }) {
     return [
       {
         label: status?.rssParsed
-          ? `RSS feed parsed - ${status.totalEpisodes} episodes found`
-          : 'Parsing RSS feed',
+          ? `RSS Parsed - ${status.totalEpisodes} episodes found`
+          : 'Parsing RSS',
         state: failed ? 'failed' : status?.rssParsed ? 'done' : 'active',
       },
       {
-        label: status?.artworkDetected ? 'Show artwork detected' : 'No artwork found - AI brand generation queued',
-        state: failed ? 'failed' : status ? 'done' : 'waiting',
+        label: status?.episodesImported
+          ? `Episodes Imported - ${status.importedEpisodes || status.totalEpisodes} saved`
+          : 'Importing episodes',
+        state: failed ? 'failed' : status?.episodesImported ? 'done' : status?.rssParsed ? 'active' : 'waiting',
       },
       {
-        label: status?.themeReady ? 'AI finished designing your site' : 'AI is designing your site...',
+        label: status?.themeReady ? 'Theme Generated' : 'Generating theme',
         state: failed ? 'failed' : status?.themeReady ? 'done' : status ? 'active' : 'waiting',
       },
       {
+        label: status?.themeReady ? 'AI Processing' : 'AI Processing queued',
+        state: failed
+          ? 'failed'
+          : status?.themeReady
+            ? 'done'
+            : status?.episodesImported
+              ? 'active'
+              : 'waiting',
+      },
+      {
         label: status?.transcriptionStatus === 'done'
-          ? `Transcription jobs started - ${status.transcribedEpisodes} completed`
-          : 'Transcribing latest episodes...',
+          ? `Transcribing complete - ${status.transcribedEpisodes} completed`
+          : 'Transcribing latest episodes',
         state: failed
           ? 'failed'
           : status?.transcriptionStatus === 'done'
@@ -113,6 +128,10 @@ export default function BuildProgressClient({ siteId }: { siteId: string }) {
             : status?.themeReady || status?.transcriptionStatus === 'processing'
               ? 'active'
               : 'waiting',
+      },
+      {
+        label: 'Site Ready',
+        state: failed ? 'failed' : status?.pipelineStatus === 'ready' ? 'done' : 'waiting',
       },
     ] satisfies Array<{ label: string; state: StepState }>;
   }, [error, status]);

@@ -1,7 +1,14 @@
 import { NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabaseServer';
+import { buildCanonicalUrl } from '@/lib/publicSite';
 import { transcribeAudioUrlWithDeepgram } from '@/lib/ai/deepgram';
-import { generateEpisodeLaunchAssetsWithOpenRouter } from '@/lib/ai/openrouter';
+import {
+    generateChapterMarkersWithOpenRouter,
+    generateEpisodeLaunchAssetsWithOpenRouter,
+    generateEpisodeSeoTagsWithOpenRouter,
+    generateSpotifyDescriptionWithOpenRouter,
+    generateYoutubeDescriptionWithOpenRouter,
+} from '@/lib/ai/openrouter';
 import { generateEpisodeThumbnailImage } from '@/lib/ai/openrouterImages';
 
 type GenerateField =
@@ -21,7 +28,9 @@ type EpisodeWithPodcast = {
     audio_url: string | null;
     transcript_text: string | null;
     transcript: string | null;
+    timestamps: Array<{ time?: string; title?: string; label?: string; seconds?: number | null }> | null;
     published_at: string | null;
+    duration_seconds: number | null;
     podcasts: {
         id: string;
         title: string | null;
@@ -30,6 +39,8 @@ type EpisodeWithPodcast = {
         accent_color: string | null;
         theme_config: Record<string, unknown> | null;
         owner_id: string;
+        rss_url: string | null;
+        custom_domain: string | null;
     } | null;
 };
 
@@ -37,7 +48,7 @@ async function getOwnedEpisode(episodeId: string, userId: string) {
     const supabase = await createSupabaseServerClient();
     const { data, error } = await supabase
         .from('episodes')
-        .select('id, podcast_id, title, description, audio_url, transcript_text, transcript, published_at, podcasts!inner(id, title, description, primary_color, accent_color, theme_config, owner_id)')
+        .select('id, podcast_id, title, description, audio_url, transcript_text, transcript, timestamps, published_at, duration_seconds, podcasts!inner(id, title, description, primary_color, accent_color, theme_config, owner_id, rss_url, custom_domain)')
         .eq('id', episodeId)
         .eq('podcasts.owner_id', userId)
         .maybeSingle();
@@ -95,7 +106,60 @@ export async function POST(
             fields.transcript = transcriptText;
         }
 
-        if (field !== 'transcript') {
+        if (field === 'all' || field === 'chapters') {
+            if (!transcriptText) throw new Error('Transcript is required before generating chapters.');
+            fields.timestamps = (await generateChapterMarkersWithOpenRouter({
+                episodeTitle: draftTitle,
+                durationMinutes: episode.duration_seconds ? episode.duration_seconds / 60 : null,
+                transcript: transcriptText,
+            })).timestamps;
+        }
+
+        if (field === 'all' || field === 'youtubeDescription') {
+            if (!transcriptText) throw new Error('Transcript is required before generating a YouTube description.');
+            const themeConfig = episode.podcasts.theme_config || {};
+            const timestamps = Array.isArray(fields.timestamps)
+                ? fields.timestamps as Array<{ time?: string; title?: string; label?: string }>
+                : episode.timestamps || [];
+
+            if (!timestamps.length) {
+                throw new Error('Chapter markers are required before generating a YouTube description.');
+            }
+
+            fields.youtubeDescription = (await generateYoutubeDescriptionWithOpenRouter({
+                podcastName: episode.podcasts.title || 'Podcast',
+                episodeTitle: draftTitle,
+                guest: null,
+                timestamps,
+                transcript: transcriptText,
+                applePodcastsUrl: typeof themeConfig.applePodcastsUrl === 'string' ? themeConfig.applePodcastsUrl : null,
+                spotifyUrl: typeof themeConfig.spotifyUrl === 'string' ? themeConfig.spotifyUrl : null,
+                websiteUrl: await buildCanonicalUrl(episode.podcasts, episode.podcast_id),
+            })).description;
+        }
+
+        if (field === 'all' || field === 'spotifyDescription') {
+            if (!transcriptText) throw new Error('Transcript is required before generating a Spotify description.');
+            fields.spotifyDescription = (await generateSpotifyDescriptionWithOpenRouter({
+                podcastName: episode.podcasts.title || 'Podcast',
+                episodeTitle: draftTitle,
+                guest: null,
+                publishSchedule: null,
+                transcript: transcriptText,
+            })).description;
+        }
+
+        if (field === 'all' || field === 'seoTags') {
+            if (!transcriptText) throw new Error('Transcript is required before generating SEO tags.');
+            fields.seoTags = (await generateEpisodeSeoTagsWithOpenRouter({
+                podcastName: episode.podcasts.title || 'Podcast',
+                episodeTitle: draftTitle,
+                guest: null,
+                transcript: transcriptText,
+            })).tags.keywords;
+        }
+
+        if (field === 'all' || field === 'thumbnail') {
             const launchKit = await generateEpisodeLaunchAssetsWithOpenRouter({
                 podcastTitle: episode.podcasts.title || 'Podcast',
                 podcastDescription: episode.podcasts.description || '',
@@ -106,40 +170,33 @@ export async function POST(
             });
 
             const assets = launchKit.assets;
-
-            if (field === 'all' || field === 'chapters') fields.timestamps = assets.timestamps;
-            if (field === 'all' || field === 'youtubeDescription') fields.youtubeDescription = assets.platformDescriptions.youtube;
-            if (field === 'all' || field === 'spotifyDescription') fields.spotifyDescription = assets.platformDescriptions.spotify;
-            if (field === 'all' || field === 'seoTags') fields.seoTags = assets.seoTags?.keywords?.length ? assets.seoTags.keywords : assets.tags;
-
-            if (field === 'all' || field === 'thumbnail') {
-                const brief = assets.thumbnailBriefs[0];
-                if (brief?.prompt) {
-                    const generated = await generateEpisodeThumbnailImage({
-                        prompt: brief.prompt,
-                        overlayText: brief.overlayText,
-                        episodeTitle: draftTitle,
-                        podcastTitle: episode.podcasts.title || 'Podcast',
-                        primaryColor: episode.podcasts.primary_color || themeColor(episode.podcasts.theme_config, 'primaryColor'),
-                        accentColor: episode.podcasts.accent_color || themeColor(episode.podcasts.theme_config, 'accentColor'),
-                        hasGuest: hasExplicitGuestSignal(draftTitle, brief.prompt),
+            const brief = assets.thumbnailBriefs[0];
+            if (brief?.prompt) {
+                const generated = await generateEpisodeThumbnailImage({
+                    prompt: brief.prompt,
+                    overlayText: brief.overlayText,
+                    episodeTitle: draftTitle,
+                    podcastTitle: episode.podcasts.title || 'Podcast',
+                    primaryColor: episode.podcasts.primary_color || themeColor(episode.podcasts.theme_config, 'primaryColor'),
+                    accentColor: episode.podcasts.accent_color || themeColor(episode.podcasts.theme_config, 'accentColor'),
+                    hasGuest: hasExplicitGuestSignal(draftTitle, brief.prompt),
+                });
+                const extension = generated.mimeType === 'image/jpeg' ? 'jpg' : generated.mimeType === 'image/webp' ? 'webp' : 'png';
+                const storagePath = `${episode.podcast_id}/${episode.id}/${crypto.randomUUID()}.${extension}`;
+                const { error: uploadError } = await supabase.storage
+                    .from('episode-thumbnails')
+                    .upload(storagePath, generated.bytes, {
+                        contentType: generated.mimeType,
+                        upsert: false,
                     });
-                    const storagePath = `${episode.podcast_id}/${episode.id}/${crypto.randomUUID()}.png`;
-                    const { error: uploadError } = await supabase.storage
-                        .from('episode-thumbnails')
-                        .upload(storagePath, generated.bytes, {
-                            contentType: generated.mimeType,
-                            upsert: false,
-                        });
 
-                    if (uploadError) throw new Error(uploadError.message);
+                if (uploadError) throw new Error(uploadError.message);
 
-                    const { data: publicUrlData } = supabase.storage
-                        .from('episode-thumbnails')
-                        .getPublicUrl(storagePath);
+                const { data: publicUrlData } = supabase.storage
+                    .from('episode-thumbnails')
+                    .getPublicUrl(storagePath);
 
-                    fields.thumbnailUrl = publicUrlData.publicUrl;
-                }
+                fields.thumbnailUrl = publicUrlData.publicUrl;
             }
         }
 

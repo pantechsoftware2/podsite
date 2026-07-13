@@ -2,7 +2,7 @@
 // components/layouts/NetflixLayout.tsx
 import React from 'react';
 import Link from 'next/link';
-import { Menu, X, Heart } from 'lucide-react';
+import { ArrowUp, Heart, Linkedin, Mail, Menu, Music2, Rss, X, Youtube } from 'lucide-react';
 import PublicSearch from '../PublicSearch';
 import { LayoutProvider } from '../LayoutContext';
 import { useState, useEffect } from 'react';
@@ -40,6 +40,9 @@ interface NetflixLayoutProps {
         latest_video_id?: string;
         twitterUrl?: string;
         linkedInUrl?: string;
+        youtubeUrl?: string;
+        spotifyUrl?: string;
+        rssUrl?: string;
         siteBasePath?: string;
         generatedPages?: Array<{ slug: string; navLabel: string }>;
     };
@@ -63,6 +66,37 @@ export default function NetflixLayout({ children, podcast, episode, onSubscribeC
         { label: 'Shop', href: `${siteBasePath}#product` },
         { label: 'About', href: `${siteBasePath}/about` },
     ];
+    const footerNavigation = [
+        { label: 'Home', href: siteBasePath || '/' },
+        { label: 'Episodes', href: `${siteBasePath}/episodes` },
+        ...navItems.filter((item) => !['Home', 'Archive'].includes(item.label)),
+        { label: 'Archive', href: `${siteBasePath}/episodes` },
+        { label: 'Sponsors', href: `${siteBasePath}#sponsors` },
+        { label: 'Contact', href: `mailto:hello@${podcast.title.toLowerCase().replace(/[^a-z0-9]+/g, '') || 'podcast'}.com` },
+    ];
+    const footerResources = [
+        { label: 'Resources', href: `${siteBasePath}#resources` },
+        { label: 'Privacy Policy', href: '#' },
+        { label: 'Terms', href: '#' },
+        { label: 'Cookie Policy', href: '#' },
+        { label: 'Refund Policy', href: '#' },
+    ];
+    const socialLinks = [
+        { label: 'X', href: podcast.twitterUrl || '#', icon: <span className="text-sm font-black">X</span> },
+        { label: 'LinkedIn', href: podcast.linkedInUrl || '#', icon: <Linkedin size={17} /> },
+        { label: 'YouTube', href: podcast.youtubeUrl || `https://www.youtube.com/results?search_query=${encodeURIComponent(podcast.title)}`, icon: <Youtube size={18} /> },
+        { label: 'Spotify', href: podcast.spotifyUrl || `https://open.spotify.com/search/${encodeURIComponent(podcast.title)}`, icon: <Music2 size={17} /> },
+        { label: 'RSS', href: podcast.rssUrl || '#', icon: <Rss size={17} /> },
+    ];
+
+    const scrollToTop = () => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    const handleNewsletterSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        onSubscribeClick?.();
+    };
 
     useEffect(() => {
         const timeout = window.setTimeout(() => {
@@ -186,36 +220,140 @@ export default function NetflixLayout({ children, podcast, episode, onSubscribeC
                     {children}
                 </main>
 
-                <footer className="relative z-10 border-t border-white/5 bg-black px-8 py-20 md:px-16">
-                    <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-10 md:flex-row">
-                        <div className="space-y-4 text-center md:text-left">
-                            <h2 className="text-4xl font-black tracking-tighter uppercase">{podcast.title}</h2>
-                            <p className="text-xs font-bold uppercase tracking-[0.3em] text-zinc-600 italic">© {new Date().getFullYear()} All Rights Reserved</p>
-                        </div>
-                        
-                        <div className="flex items-center gap-8">
-                            <div className="flex items-center gap-4">
-                                <a href={podcast.twitterUrl || '#'} className="h-12 w-12 rounded-full border border-white/10 bg-white/5 flex items-center justify-center text-white hover:bg-white hover:text-black transition-all">
-                                    <span className="text-lg font-black italic">𝕏</span>
-                                </a>
-                                <a href={podcast.linkedInUrl || '#'} className="h-12 w-12 rounded-full border border-white/10 bg-white/5 flex items-center justify-center text-white hover:bg-white hover:text-black transition-all">
-                                    <span className="text-base font-black italic">in</span>
-                                </a>
-                            </div>
-                            <div className="flex flex-col gap-1 items-end md:items-start">
-                                <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-600">Legal</h4>
-                                <div className="flex flex-wrap gap-4 text-[10px] font-bold uppercase tracking-widest text-zinc-500">
-                                    <Link href="#" className="hover:text-white transition-colors">Privacy Policy</Link>
-                                    <Link href="#" className="hover:text-white transition-colors">Terms of Service</Link>
-                                    <Link href="#" className="hover:text-white transition-colors">Cookie Policy</Link>
-                                    <Link href="#" className="hover:text-white transition-colors">Refund Policy</Link>
+                <footer className="relative z-10 overflow-hidden border-t border-white/10 bg-black px-5 py-16 sm:px-8 md:px-16 lg:py-20">
+                    <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[var(--primary)]/70 to-transparent" />
+                    <div className="pointer-events-none absolute -right-32 top-12 h-72 w-72 rounded-full bg-[var(--primary)]/10 blur-3xl" />
+                    <div className="pointer-events-none absolute bottom-0 left-0 h-56 w-56 rounded-full bg-white/5 blur-3xl" />
+
+                    <div className="relative mx-auto max-w-7xl">
+                        <div className="grid gap-10 rounded-[2rem] border border-white/10 bg-white/[0.035] p-6 shadow-[0_24px_90px_rgba(0,0,0,0.45)] backdrop-blur-xl sm:p-8 md:grid-cols-2 lg:grid-cols-[1.25fr_0.7fr_0.7fr_1.35fr] lg:gap-12 lg:p-10">
+                            <section className="space-y-5">
+                                <Link href={siteBasePath || '/'} className="group inline-flex items-center gap-4 rounded-xl outline-none transition focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-black">
+                                    {podcast.image ? (
+                                        <img
+                                            src={podcast.image}
+                                            alt=""
+                                            className="h-14 w-14 rounded-2xl border border-white/10 object-cover shadow-2xl transition-transform duration-300 group-hover:scale-105"
+                                        />
+                                    ) : (
+                                        <span className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-white/10 text-lg font-black text-white shadow-2xl transition-transform duration-300 group-hover:scale-105">
+                                            {podcast.title.slice(0, 2).toUpperCase()}
+                                        </span>
+                                    )}
+                                    <span>
+                                        <span className="block text-2xl font-black uppercase tracking-tight text-white transition-colors group-hover:text-[var(--primary)]">
+                                            {podcast.title}
+                                        </span>
+                                        {podcast.tagline && (
+                                            <span className="mt-1 block text-[10px] font-bold uppercase tracking-[0.24em] text-zinc-500">
+                                                {podcast.tagline}
+                                            </span>
+                                        )}
+                                    </span>
+                                </Link>
+                                <p className="max-w-sm text-sm leading-6 text-zinc-400">
+                                    {podcast.description || 'Sharp episodes, curated resources, and new releases from the show.'}
+                                </p>
+                                <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-zinc-600">
+                                    © {new Date().getFullYear()} {podcast.title}
+                                </p>
+                            </section>
+
+                            <section>
+                                <h2 className="mb-5 text-[10px] font-black uppercase tracking-[0.24em] text-zinc-500">Navigation</h2>
+                                <nav className="grid gap-3 text-sm font-semibold text-zinc-400" aria-label="Footer navigation">
+                                    {footerNavigation.map((item) => (
+                                        <Link
+                                            key={`${item.label}-${item.href}`}
+                                            href={item.href}
+                                            className="w-fit rounded-md transition-all duration-200 hover:translate-x-1 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-black"
+                                        >
+                                            {item.label}
+                                        </Link>
+                                    ))}
+                                </nav>
+                            </section>
+
+                            <section>
+                                <h2 className="mb-5 text-[10px] font-black uppercase tracking-[0.24em] text-zinc-500">Resources</h2>
+                                <nav className="grid gap-3 text-sm font-semibold text-zinc-400" aria-label="Footer resources">
+                                    {footerResources.map((item) => (
+                                        <Link
+                                            key={`${item.label}-${item.href}`}
+                                            href={item.href}
+                                            className="w-fit rounded-md transition-all duration-200 hover:translate-x-1 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-black"
+                                        >
+                                            {item.label}
+                                        </Link>
+                                    ))}
+                                </nav>
+                            </section>
+
+                            <section className="space-y-6">
+                                <div>
+                                    <h2 className="mb-4 text-[10px] font-black uppercase tracking-[0.24em] text-zinc-500">Social</h2>
+                                    <div className="flex flex-wrap gap-3">
+                                        {socialLinks.map((item) => (
+                                            <a
+                                                key={item.label}
+                                                href={item.href}
+                                                aria-label={item.label}
+                                                target={item.href.startsWith('http') ? '_blank' : undefined}
+                                                rel={item.href.startsWith('http') ? 'noreferrer' : undefined}
+                                                className="flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/[0.06] text-zinc-300 shadow-lg transition-all duration-200 hover:-translate-y-0.5 hover:scale-105 hover:border-[var(--primary)]/50 hover:bg-[var(--primary)] hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-black"
+                                            >
+                                                {item.icon}
+                                            </a>
+                                        ))}
+                                    </div>
                                 </div>
+
+                                <form onSubmit={handleNewsletterSubmit} className="space-y-3">
+                                    <label htmlFor="footer-newsletter" className="block text-[10px] font-black uppercase tracking-[0.24em] text-zinc-500">
+                                        Newsletter
+                                    </label>
+                                    <div className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-black/40 p-2 shadow-inner sm:flex-row">
+                                        <div className="relative flex-1">
+                                            <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-600" />
+                                            <input
+                                                id="footer-newsletter"
+                                                type="email"
+                                                placeholder="email@domain.com"
+                                                className="h-12 w-full rounded-xl border border-transparent bg-white/[0.04] px-10 text-sm text-white outline-none transition placeholder:text-zinc-600 focus:border-[var(--primary)]/60 focus:bg-white/[0.07]"
+                                            />
+                                        </div>
+                                        <button
+                                            type="submit"
+                                            className="h-12 rounded-xl bg-white px-5 text-xs font-black uppercase tracking-[0.18em] text-black shadow-[0_12px_35px_rgba(255,255,255,0.08)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[var(--primary)] active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-black"
+                                        >
+                                            Subscribe
+                                        </button>
+                                    </div>
+                                </form>
+                            </section>
+                        </div>
+
+                        <div className="mt-8 flex flex-col gap-5 border-t border-white/10 pt-6 text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-600 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
+                                <span>© {new Date().getFullYear()} All Rights Reserved</span>
+                                <span className="hidden h-1 w-1 rounded-full bg-zinc-700 sm:inline-block" />
+                                <span>Built with PodSite Studio</span>
+                                {podcast.rssUrl && (
+                                    <>
+                                        <span className="hidden h-1 w-1 rounded-full bg-zinc-700 sm:inline-block" />
+                                        <a href={podcast.rssUrl} className="transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-black">
+                                            RSS Feed
+                                        </a>
+                                    </>
+                                )}
                             </div>
-                            <button 
-                                onClick={onSubscribeClick}
-                                className="h-14 px-10 rounded-sm bg-white text-black font-black uppercase tracking-[0.2em] text-sm hover:bg-[var(--primary)] transition-all shadow-2xl active:scale-95"
+                            <button
+                                type="button"
+                                onClick={scrollToTop}
+                                className="inline-flex w-fit items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-white transition-all duration-200 hover:-translate-y-0.5 hover:border-[var(--primary)]/50 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-black"
                             >
-                                Subscribe Now
+                                <ArrowUp size={14} />
+                                Back to Top
                             </button>
                         </div>
                     </div>

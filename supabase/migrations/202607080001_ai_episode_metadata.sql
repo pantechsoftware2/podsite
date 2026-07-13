@@ -14,34 +14,3 @@ alter table public.episodes
 alter table public.podcasts
   add column if not exists ai_brand jsonb,
   add column if not exists ai_brand_status text default 'pending';
-
-do $$
-begin
-  if not exists (
-    select 1
-    from pg_constraint
-    where conname = 'episodes_transcript_status_check'
-      and conrelid = 'public.episodes'::regclass
-  ) then
-    alter table public.episodes
-      add constraint episodes_transcript_status_check
-      check (transcript_status in ('pending', 'processing', 'done', 'failed'));
-  end if;
-
-  if not exists (
-    select 1
-    from pg_constraint
-    where conname = 'podcasts_ai_brand_status_check'
-      and conrelid = 'public.podcasts'::regclass
-  ) then
-    alter table public.podcasts
-      add constraint podcasts_ai_brand_status_check
-      check (ai_brand_status in ('pending', 'generating', 'done'));
-  end if;
-end $$;
-
-comment on column public.episodes.timestamps is
-  'Array of timestamp objects, for example [{"time":"00:12:34","label":"Topic name"}].';
-
-comment on column public.podcasts.ai_brand is
-  'AI-generated brand settings: primaryColor, bgColor, accentColor, fontFamily, cornerRadius, logoUrl.';

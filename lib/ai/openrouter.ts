@@ -83,6 +83,21 @@ export type WebsiteSeoGeneration = {
     seo: WebsiteSeoSettings;
 };
 
+export type ChapterMarker = {
+    time: string;
+    title: string;
+    label: string;
+    seconds: number | null;
+};
+
+export type EpisodeSeoTags = {
+    metaTitle: string;
+    metaDescription: string;
+    keywords: string[];
+    ogTitle: string;
+    ogDescription: string;
+};
+
 export type AutoBrandIdentity = {
     primaryColor: string;
     backgroundColor: string;
@@ -338,6 +353,14 @@ function timestampToSeconds(input: string) {
     return parts[0];
 }
 
+function formatSecondsAsTimestamp(seconds: number) {
+    const safeSeconds = Math.max(0, Math.round(seconds));
+    const hours = Math.floor(safeSeconds / 3600);
+    const minutes = Math.floor((safeSeconds % 3600) / 60);
+    const remainder = safeSeconds % 60;
+    return [hours, minutes, remainder].map((part) => String(part).padStart(2, '0')).join(':');
+}
+
 function sanitizeTimestamps(input: unknown): EpisodeLaunchAssets['timestamps'] {
     if (!Array.isArray(input)) return [];
 
@@ -358,6 +381,43 @@ function sanitizeTimestamps(input: unknown): EpisodeLaunchAssets['timestamps'] {
         })
         .filter((item) => /^\d{1,2}:\d{2}(?::\d{2})?$/.test(item.time) && item.title)
         .slice(0, 12);
+}
+
+function sanitizeChapterMarkers(input: unknown): ChapterMarker[] {
+    const source = Array.isArray(input) ? input : [];
+    const cleaned = source
+        .filter((item): item is Record<string, unknown> => Boolean(item && typeof item === 'object'))
+        .map((item, index) => {
+            const rawTime = typeof item.time === 'string' ? item.time.trim() : index === 0 ? '00:00:00' : '';
+            const label = typeof item.label === 'string'
+                ? item.label.trim().slice(0, 60)
+                : typeof item.title === 'string'
+                    ? item.title.trim().slice(0, 60)
+                    : '';
+            const seconds = timestampToSeconds(rawTime);
+
+            return {
+                time: partsToHhMmSs(rawTime),
+                title: label,
+                label,
+                seconds,
+            };
+        })
+        .filter((item) => /^\d{2}:\d{2}:\d{2}$/.test(item.time) && item.label)
+        .slice(0, 15);
+
+    if (!cleaned.length) {
+        return [{ time: '00:00:00', title: 'Intro', label: 'Intro', seconds: 0 }];
+    }
+
+    return cleaned[0]?.time === '00:00:00'
+        ? cleaned
+        : [{ time: '00:00:00', title: 'Intro', label: 'Intro', seconds: 0 }, ...cleaned].slice(0, 15);
+}
+
+function partsToHhMmSs(input: string) {
+    const seconds = timestampToSeconds(input);
+    return seconds === null ? input : formatSecondsAsTimestamp(seconds);
 }
 
 function sanitizeSocialPosts(input: unknown): EpisodeLaunchAssets['socialPosts'] {
@@ -712,6 +772,303 @@ Artwork dominant colors: ${input.artworkDominantColors?.length ? input.artworkDo
         model,
         identity: sanitizeAutoBrandIdentity(JSON.parse(content)),
     };
+}
+
+export async function generateChapterMarkersWithOpenRouter(input: {
+    episodeTitle: string;
+    durationMinutes: number | null;
+    transcript: string;
+}) {
+    const client = getOpenRouterClient();
+    const model = process.env.OPENROUTER_MODEL || OPENROUTER_MODEL;
+
+    if (!client) {
+        return {
+            model: 'fallback',
+            timestamps: sanitizeChapterMarkers([
+                { time: '00:00:00', label: 'Intro' },
+                ...(input.durationMinutes && input.durationMinutes > 12
+                    ? [{ time: formatSecondsAsTimestamp(Math.floor(input.durationMinutes * 30)), label: 'Main discussion' }]
+                    : []),
+            ]),
+        };
+    }
+
+    const systemPrompt = `You are a podcast chapter marker generator.
+
+Given a transcript of a podcast episode, identify the major topic changes
+and create chapter markers. Return ONLY valid JSON, no markdown.
+
+Schema:
+[
+  { "time": "HH:MM:SS", "label": "Short descriptive chapter title (max 60 chars)" }
+]
+
+Rules:
+- First chapter always starts at "00:00:00" with a title like "Intro" or the opening topic
+- Aim for 5-15 chapters depending on episode length
+- Each chapter should represent a genuine topic shift, not just a pause
+- Labels should be specific and descriptive, not generic
+  GOOD: "Why Joshua left DC journalism"
+  BAD: "Discussion continues"
+- Use natural casing, no ALL CAPS
+- Time format must be HH:MM:SS`;
+
+    const userPrompt = `Episode title: ${input.episodeTitle || 'Untitled episode'}
+Episode duration: ${input.durationMinutes ? `${Math.round(input.durationMinutes)} minutes` : 'unknown'}
+
+Transcript:
+${compactText(input.transcript, 30000)}`;
+
+    const response = await client.chat.completions.create({
+        model,
+        temperature: 0.35,
+        max_tokens: 1200,
+        messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt },
+        ],
+    });
+
+    const content = response.choices[0]?.message?.content;
+    if (!content) throw new Error('OpenRouter returned an empty chapter response.');
+
+    return {
+        model,
+        timestamps: sanitizeChapterMarkers(JSON.parse(content)),
+    };
+}
+
+export async function generateYoutubeDescriptionWithOpenRouter(input: {
+    podcastName: string;
+    episodeTitle: string;
+    guest?: string | null;
+    timestamps: Array<{ time?: string; title?: string; label?: string }>;
+    transcript: string;
+    applePodcastsUrl?: string | null;
+    spotifyUrl?: string | null;
+    websiteUrl?: string | null;
+}) {
+    const client = getOpenRouterClient();
+    const model = process.env.OPENROUTER_MODEL || OPENROUTER_MODEL;
+    const chapters = input.timestamps
+        .map((chapter) => `${partsToHhMmSs(chapter.time || '00:00:00')} ${chapter.label || chapter.title || 'Chapter'}`)
+        .join('\n');
+
+    if (!client) {
+        return {
+            model: 'fallback',
+            description: replacePlatformPlaceholders(
+                `${input.episodeTitle} opens a focused conversation from ${input.podcastName}.\n\nListen for the key ideas, practical takeaways, and moments worth sharing from this episode.\n\nTIMESTAMPS\n${chapters || '00:00:00 Intro'}\n\nCONNECT\nApple Podcasts: [LINK]\nSpotify: [LINK]\nWebsite: [LINK]\n\n#${input.podcastName.replace(/\W+/g, '')} #Podcast #Episode`,
+                input,
+            ),
+        };
+    }
+
+    const systemPrompt = `You are a YouTube description writer for podcast episodes.
+
+Write a YouTube description that maximizes watch time and discoverability.
+Return ONLY the description text, no JSON wrapping.
+
+Structure (follow this exactly):
+1. Hook line (1 sentence, punchy, makes viewer want to watch)
+2. Blank line
+3. Episode summary (2-3 sentences, what the viewer will learn)
+4. Blank line
+5. TIMESTAMPS section header
+6. List each chapter as: HH:MM:SS Topic Name
+7. Blank line
+8. CONNECT section with placeholder links:
+   Apple Podcasts: [LINK]
+   Spotify: [LINK]
+   Website: [LINK]
+9. Blank line
+10. 3-5 relevant hashtags
+
+Rules:
+- Total length: 800-1500 characters (YouTube truncates after ~200 chars in preview, so front-load the hook)
+- No clickbait. Be specific about what the episode covers.
+- Use the guest's full name if available
+- Include 2-3 keywords naturally for YouTube search`;
+
+    const userPrompt = `Podcast name: ${input.podcastName}
+Episode title: ${input.episodeTitle}
+Guest (if any): ${input.guest || 'none'}
+Chapter markers:
+${chapters || '00:00:00 Intro'}
+
+Transcript excerpt (first 5000 chars):
+${compactText(input.transcript, 5000)}`;
+
+    const response = await client.chat.completions.create({
+        model,
+        temperature: 0.55,
+        max_tokens: 900,
+        messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt },
+        ],
+    });
+
+    const content = response.choices[0]?.message?.content;
+    if (!content) throw new Error('OpenRouter returned an empty YouTube description.');
+
+    return {
+        model,
+        description: replacePlatformPlaceholders(content.trim(), input),
+    };
+}
+
+export async function generateSpotifyDescriptionWithOpenRouter(input: {
+    podcastName: string;
+    episodeTitle: string;
+    guest?: string | null;
+    publishSchedule?: string | null;
+    transcript: string;
+}) {
+    const client = getOpenRouterClient();
+    const model = process.env.OPENROUTER_MODEL || OPENROUTER_MODEL;
+
+    if (!client) {
+        return {
+            model: 'fallback',
+            description: `${input.episodeTitle} distills the most useful ideas from ${input.podcastName}.\n\n• Key context from the episode\n• Practical takeaways for listeners\n• Moments worth revisiting\n\nFollow the show and turn on notifications.`,
+        };
+    }
+
+    const systemPrompt = `You are a Spotify episode description writer.
+
+Write a Spotify-optimized episode description. Spotify descriptions
+are shorter and more focused than YouTube.
+
+Return ONLY the description text.
+
+Structure:
+1. One-sentence hook
+2. Blank line
+3. What you'll learn (3-5 bullet points using • character, each under 80 chars)
+4. Blank line
+5. "New episodes every {{schedule}}. Follow the show and turn on notifications."
+6. Blank line
+7. Guest info (1 line, if applicable)
+
+Rules:
+- Total length: 400-600 characters
+- No timestamps (Spotify has its own chapter system)
+- No hashtags
+- No links (Spotify strips most of them)
+- Use the • character for bullets, not - or *`;
+
+    const userPrompt = `Podcast name: ${input.podcastName}
+Episode title: ${input.episodeTitle}
+Guest: ${input.guest || 'none'}
+Publish schedule: ${input.publishSchedule || 'omit line 5'}
+
+Transcript excerpt (first 3000 chars):
+${compactText(input.transcript, 3000)}`;
+
+    const response = await client.chat.completions.create({
+        model,
+        temperature: 0.5,
+        max_tokens: 700,
+        messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt },
+        ],
+    });
+
+    const content = response.choices[0]?.message?.content;
+    if (!content) throw new Error('OpenRouter returned an empty Spotify description.');
+
+    return { model, description: content.trim() };
+}
+
+export async function generateEpisodeSeoTagsWithOpenRouter(input: {
+    podcastName: string;
+    episodeTitle: string;
+    guest?: string | null;
+    transcript: string;
+}): Promise<{ model: string; tags: EpisodeSeoTags }> {
+    const client = getOpenRouterClient();
+    const model = process.env.OPENROUTER_MODEL || OPENROUTER_MODEL;
+    const fallback = sanitizeSeoTags(null, {
+        podcastTitle: input.podcastName,
+        episodeTitle: input.episodeTitle,
+        seoTitle: `${input.episodeTitle} | ${input.podcastName}`.slice(0, 60),
+        seoDescription: `Listen to ${input.episodeTitle} from ${input.podcastName}.`.slice(0, 155),
+        tags: [input.episodeTitle, input.podcastName].filter(Boolean),
+    });
+
+    if (!client) {
+        return { model: 'fallback', tags: fallback };
+    }
+
+    const systemPrompt = `You are an SEO specialist for podcast content.
+
+Given an episode transcript and metadata, generate SEO tags for the
+episode's web page. Return ONLY valid JSON.
+
+Schema:
+{
+  "metaTitle": "max 60 chars, include podcast name and episode topic",
+  "metaDescription": "max 155 chars, compelling summary with primary keyword",
+  "keywords": ["array", "of", "8-12", "relevant", "keywords"],
+  "ogTitle": "max 60 chars, optimized for social sharing",
+  "ogDescription": "max 200 chars, written to get clicks on social media"
+}
+
+Rules:
+- Keywords should be specific, not generic
+  GOOD: "O-1 visa engineer", "immigration tech workers"
+  BAD: "podcast", "interview", "conversation"
+- Include the guest's name as a keyword if applicable
+- metaTitle format: "{{Topic}} | {{Podcast Name}}"
+- Front-load the most important keyword in metaDescription`;
+
+    const userPrompt = `Podcast: ${input.podcastName}
+Episode: ${input.episodeTitle}
+Guest: ${input.guest || 'none'}
+
+Transcript excerpt (first 2000 chars):
+${compactText(input.transcript, 2000)}`;
+
+    const response = await client.chat.completions.create({
+        model,
+        temperature: 0.35,
+        max_tokens: 900,
+        response_format: { type: 'json_object' },
+        messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt },
+        ],
+    });
+
+    const content = response.choices[0]?.message?.content;
+    if (!content) throw new Error('OpenRouter returned an empty SEO tag response.');
+
+    return {
+        model,
+        tags: sanitizeSeoTags(JSON.parse(content), {
+            podcastTitle: input.podcastName,
+            episodeTitle: input.episodeTitle,
+            seoTitle: fallback.metaTitle,
+            seoDescription: fallback.metaDescription,
+            tags: fallback.keywords,
+        }),
+    };
+}
+
+function replacePlatformPlaceholders(
+    description: string,
+    links: { applePodcastsUrl?: string | null; spotifyUrl?: string | null; websiteUrl?: string | null },
+) {
+    const replacements = [
+        links.applePodcastsUrl || '[LINK]',
+        links.spotifyUrl || '[LINK]',
+        links.websiteUrl || '[LINK]',
+    ];
+    let index = 0;
+    return description.replace(/\[LINK\]/g, () => replacements[index++] || '[LINK]');
 }
 
 export async function generateImportSiteBlueprintWithOpenRouter(input: {

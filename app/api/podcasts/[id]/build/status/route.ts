@@ -38,8 +38,11 @@ export async function GET(
       title: podcast.title,
       aiBrandStatus: podcast.ai_brand_status,
       status: {
+        pipelineStatus: build.status || 'queued',
         rssParsed: Boolean(build.rssParsed),
         totalEpisodes: Number(build.totalEpisodes || 0),
+        episodesImported: Boolean(build.episodesImported),
+        importedEpisodes: Number(build.importedEpisodes || 0),
         artworkDetected: Boolean(build.artworkDetected),
         colorsExtracted: Boolean(build.colorsExtracted),
         themeStatus: build.themeStatus || (build.themeReady ? 'ready' : 'queued'),

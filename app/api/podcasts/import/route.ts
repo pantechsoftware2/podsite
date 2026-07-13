@@ -99,6 +99,8 @@ export async function POST(req: Request) {
       status: 'queued',
       rssParsed: true,
       totalEpisodes: parsed.episodes.length,
+      episodesImported: false,
+      importedEpisodes: 0,
       artworkDetected,
       colorsExtracted,
       themeReady: false,
@@ -175,6 +177,22 @@ export async function POST(req: Request) {
 
     if (!error) episodesProcessed += 1;
   }
+
+  const importedThemeConfig = {
+    ...(podcast.theme_config as ThemeConfig),
+    _build: {
+      ...((podcast.theme_config as ThemeConfig)?._build || {}),
+      episodesImported: true,
+      importedEpisodes: episodesProcessed,
+      latestMessage: `Imported ${episodesProcessed} episodes. AI build is queued.`,
+      updatedAt: new Date().toISOString(),
+    },
+  };
+
+  await supabase
+    .from('podcasts')
+    .update({ theme_config: importedThemeConfig })
+    .eq('id', podcast.id);
 
   revalidatePath('/dashboard');
   revalidatePath(`/${podcast.id}`);

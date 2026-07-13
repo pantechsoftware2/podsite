@@ -3,9 +3,13 @@ import { createSupabaseServerClient } from '@/lib/supabaseServer';
 import { transcribeAudioUrlWithDeepgram } from '@/lib/ai/deepgram';
 import {
     autoBrandToThemeConfig,
+    generateChapterMarkersWithOpenRouter,
     generateAutoBrandIdentityWithOpenRouter,
+    generateEpisodeSeoTagsWithOpenRouter,
     generateEpisodeLaunchAssetsWithOpenRouter,
+    generateSpotifyDescriptionWithOpenRouter,
     generateWebsiteSeoWithOpenRouter,
+    generateYoutubeDescriptionWithOpenRouter,
     type EpisodeLaunchAssets,
 } from '@/lib/ai/openrouter';
 import { generateEpisodeThumbnailImage, generatePodcastLogoImage } from '@/lib/ai/openrouterImages';
@@ -23,6 +27,11 @@ export type OwnedEpisode = {
     transcript_text: string | null;
     timestamps: Array<{ time: string; title: string; seconds: number | null }> | null;
     published_at: string | null;
+    duration_seconds: number | null;
+    youtube_description?: string | null;
+    spotify_description?: string | null;
+    seo_tags?: string[] | null;
+    thumbnail_url?: string | null;
     podcasts: {
         id: string;
         owner_id: string;
@@ -31,6 +40,8 @@ export type OwnedEpisode = {
         primary_color: string | null;
         accent_color: string | null;
         theme_config: Record<string, unknown> | null;
+        rss_url?: string | null;
+        custom_domain?: string | null;
     } | null;
 };
 
@@ -83,7 +94,7 @@ export async function getOwnedEpisode(supabase: SupabaseServer, episodeId: unkno
 
     const { data, error } = await supabase
         .from('episodes')
-        .select('id, podcast_id, title, description, audio_url, transcript, transcript_text, timestamps, published_at, podcasts!inner(id, owner_id, title, description, primary_color, accent_color, theme_config)')
+        .select('id, podcast_id, title, description, audio_url, transcript, transcript_text, timestamps, published_at, duration_seconds, youtube_description, spotify_description, seo_tags, thumbnail_url, podcasts!inner(id, owner_id, title, description, primary_color, accent_color, theme_config, rss_url, custom_domain)')
         .eq('id', episodeId)
         .eq('podcasts.owner_id', userId)
         .maybeSingle();
@@ -176,8 +187,12 @@ export async function generateLaunchAssetsForEpisode(episode: OwnedEpisode, tran
 
 export async function generateAndSaveTimestamps(supabase: SupabaseServer, episode: OwnedEpisode) {
     const transcript = requireTranscript(episode);
-    const launchKit = await generateLaunchAssetsForEpisode(episode, transcript);
-    const timestamps = launchKit.assets.timestamps;
+    const generated = await generateChapterMarkersWithOpenRouter({
+        episodeTitle: episode.title || 'Untitled episode',
+        durationMinutes: episode.duration_seconds ? episode.duration_seconds / 60 : null,
+        transcript,
+    });
+    const timestamps = generated.timestamps;
 
     const { error } = await supabase
         .from('episodes')
@@ -194,8 +209,20 @@ export async function generateAndSaveYoutubeDescription(supabase: SupabaseServer
         throw new Error('Timestamps are required before generating a YouTube description.');
     }
 
-    const launchKit = await generateLaunchAssetsForEpisode(episode, transcript);
-    const description = launchKit.assets.platformDescriptions.youtube;
+    const themeConfig = episode.podcasts?.theme_config || {};
+    const descriptionResult = await generateYoutubeDescriptionWithOpenRouter({
+        podcastName: episode.podcasts?.title || 'Podcast',
+        episodeTitle: episode.title || 'Untitled episode',
+        guest: null,
+        timestamps: episode.timestamps,
+        transcript,
+        applePodcastsUrl: typeof themeConfig.applePodcastsUrl === 'string' ? themeConfig.applePodcastsUrl : null,
+        spotifyUrl: typeof themeConfig.spotifyUrl === 'string' ? themeConfig.spotifyUrl : null,
+        websiteUrl: episode.podcasts
+            ? await buildCanonicalUrl(episode.podcasts, episode.podcast_id)
+            : null,
+    });
+    const description = descriptionResult.description;
 
     const { error } = await supabase
         .from('episodes')
@@ -208,8 +235,14 @@ export async function generateAndSaveYoutubeDescription(supabase: SupabaseServer
 
 export async function generateAndSaveSpotifyDescription(supabase: SupabaseServer, episode: OwnedEpisode) {
     const transcript = requireTranscript(episode);
-    const launchKit = await generateLaunchAssetsForEpisode(episode, transcript);
-    const description = launchKit.assets.platformDescriptions.spotify;
+    const generated = await generateSpotifyDescriptionWithOpenRouter({
+        podcastName: episode.podcasts?.title || 'Podcast',
+        episodeTitle: episode.title || 'Untitled episode',
+        guest: null,
+        publishSchedule: null,
+        transcript,
+    });
+    const description = generated.description;
 
     const { error } = await supabase
         .from('episodes')
@@ -222,14 +255,13 @@ export async function generateAndSaveSpotifyDescription(supabase: SupabaseServer
 
 export async function generateAndSaveSeoTags(supabase: SupabaseServer, episode: OwnedEpisode) {
     const transcript = requireTranscript(episode);
-    const launchKit = await generateLaunchAssetsForEpisode(episode, transcript);
-    const tags = launchKit.assets.seoTags || {
-        metaTitle: launchKit.assets.seoTitle,
-        metaDescription: launchKit.assets.seoDescription,
-        keywords: launchKit.assets.tags,
-        ogTitle: launchKit.assets.seoTitle,
-        ogDescription: launchKit.assets.seoDescription,
-    };
+    const generated = await generateEpisodeSeoTagsWithOpenRouter({
+        podcastName: episode.podcasts?.title || 'Podcast',
+        episodeTitle: episode.title || 'Untitled episode',
+        guest: null,
+        transcript,
+    });
+    const tags = generated.tags;
 
     const { error } = await supabase
         .from('episodes')

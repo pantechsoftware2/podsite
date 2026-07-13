@@ -25,6 +25,19 @@ with check (
   )
 );
 
+drop policy if exists "public can upload rss pipeline podcast logos" on storage.objects;
+create policy "public can upload rss pipeline podcast logos"
+on storage.objects
+for insert
+with check (
+  bucket_id = 'podcast-logos'
+  and exists (
+    select 1 from public.podcasts
+    where podcasts.id::text = (storage.foldername(name))[1]
+    and podcasts.owner_id is null
+  )
+);
+
 drop policy if exists "owners can update podcast logos" on storage.objects;
 create policy "owners can update podcast logos"
 on storage.objects

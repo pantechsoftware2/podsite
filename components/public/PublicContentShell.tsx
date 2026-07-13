@@ -11,6 +11,10 @@ type PublicShellPodcast = {
   description?: string;
   twitterUrl?: string;
   linkedInUrl?: string;
+  youtubeUrl?: string;
+  spotifyUrl?: string;
+  rss_url?: string | null;
+  rssUrl?: string;
   latest_video_id?: string;
   siteBasePath?: string;
   generatedPages?: Array<{ slug: string; navLabel: string }>;
@@ -37,6 +41,11 @@ export default function PublicContentShell({
   const shellPodcast = {
     ...podcast,
     generatedPages: podcast.generatedPages || themeConfig.generatedPages || [],
+    twitterUrl: themeConfig.twitterUrl || podcast.twitterUrl,
+    linkedInUrl: themeConfig.linkedInUrl || podcast.linkedInUrl,
+    youtubeUrl: themeConfig.youtubeUrl || podcast.youtubeUrl,
+    spotifyUrl: themeConfig.spotifyUrl || podcast.spotifyUrl,
+    rssUrl: themeConfig.rssUrlOverride || podcast.rssUrl || podcast.rss_url || undefined,
   };
 
   return (
